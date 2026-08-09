@@ -4,16 +4,12 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: write
-  pages: write
-  id-token: write
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +21,7 @@ jobs:
           publish_branch: gh-pages
 
       - name: Deploy to Cloudflare Workers
+        continue-on-error: true
         run: |
           npx wrangler@3 pages deploy . \
             --project-name=apbie-chemistry \

@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>APBIE — Chemistry</title>
+
+<!-- Firebase compat -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- KaTeX for formula rendering -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"/>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})"></script>
+
+<style>
+:root {
+  --navy:    #0d1b2a;
+  --navy2:   #162032;
+  --teal:    #14b8a6;
+  --teal2:   #0d9488;
+  --cream:   #f0ede6;
+  --cream2:  #e8e4db;
+  --amber:   #f59e0b;
+  --rose:    #e11d48;
+  --violet:  #7c3aed;
+  --text:    #f0ede6;
+  --text-dim:#a0aec0;
+  --card:    #1a2d42;
+  --card2:   #1e3347;
+  --border:  #2d4a63;
+  --radius:  12px;
+  --shadow:  0 4px 24px rgba(0,0,0,.4);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--navy);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* ── LOGIN ── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(ellipse at 30% 20%,#0d2b3e 0%,var(--navy) 60%)}
+.login-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:48px 40px;width:min(420px,92vw);box-shadow:var(--shadow)}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo .atom{font-size:3rem;margin-bottom:8px;display:block;animation:spin 8s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.login-logo h1{font-size:1.6rem;font-weight:700;color:var(--teal);letter-spacing:.04em}
+.login-logo p{color:var(--text-dim);font-size:.85rem;margin-top:4px}
+.login-input{width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:.95rem;margin-bottom:12px;outline:none;transition:border .2s}
+.login-input:focus{border-color:var(--teal)}
+.login-btn{width:100%;background:var(--teal);color:#fff;border:none;border-radius:10px;padding:13px;font-size:1rem;font-weight:600;cursor:pointer;transition:background .2s;margin-top:4px}
+.login-btn:hover{background:var(--teal2)}
+.login-err{color:var(--rose);font-size:.85rem;text-align:center;margin-top:8px;min-height:20px}
+.quick-logins{margin-top:20px;border-top:1px solid var(--border);padding-top:16px}
+.quick-logins p{color:var(--text-dim);font-size:.8rem;text-align:center;margin-bottom:10px}
+.quick-btn{display:block;width:100%;text-align:left;background:var(--navy2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text-dim);font-size:.8rem;cursor:pointer;margin-bottom:6px;transition:all .2s}
+.quick-btn:hover{background:var(--card2);border-color:var(--teal);color:var(--text)}
+
+/* ── HEADER ── */
+#app-header{display:none;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.header-inner{max-width:1100px;margin:0 auto;padding:0 20px;display:flex;align-items:center;gap:16px;height:60px}
+.header-logo{display:flex;align-items:center;gap:10px}
+.header-logo span:first-child{font-size:1.4rem}
+.header-logo h2{font-size:1rem;font-weight:700;color:var(--teal)}
+.header-logo small{color:var(--text-dim);font-size:.75rem;display:block;margin-top:-2px}
+.header-nav{display:flex;gap:4px;flex:1;justify-content:center}
+.nav-btn{background:transparent;border:none;border-radius:8px;padding:7px 14px;color:var(--text-dim);font-size:.82rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
+.nav-btn:hover{background:var(--card2);color:var(--text)}
+.nav-btn.active{background:var(--teal);color:#fff}
+.header-user{display:flex;align-items:center;gap:10px;margin-left:auto}
+.avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+.signout-btn{background:transparent;border:1px solid var(--border);border-radius:8px;padding:5px 12px;color:var(--text-dim);font-size:.78rem;cursor:pointer;transition:all .2s}
+.signout-btn:hover{border-color:var(--rose);color:var(--rose)}
+
+/* ── MAIN ── */
+#app-main{display:none;max-width:1100px;margin:0 auto;padding:24px 20px}
+
+/* ── CHAPTER SELECTOR ── */
+.chapter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.ch-btn{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--text-dim);font-size:.8rem;cursor:pointer;transition:all .2s;white-space:nowrap}
+.ch-btn:hover{border-color:var(--teal);color:var(--text)}
+.ch-btn.active{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+
+/* ── FORMULA VAULT ── */
+.vault-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.formula-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;transition:all .25s;position:relative}
+.formula-card:hover{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)20}
+.formula-card .f-tag{font-size:.7rem;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.formula-card .f-name{font-size:.95rem;font-weight:600;margin-bottom:10px}
+.formula-card .f-formula{background:var(--navy2);border-radius:8px;padding:10px 14px;font-size:.9rem;margin-bottom:10px;overflow-x:auto}
+.formula-card .f-note{font-size:.8rem;color:var(--text-dim);line-height:1.5}
+.star-btn{position:absolute;top:14px;right:14px;background:transparent;border:none;font-size:1.1rem;cursor:pointer;opacity:.5;transition:opacity .2s}
+.star-btn:hover,.star-btn.starred{opacity:1}
+.star-btn.starred{color:var(--amber)}
+
+/* ── QUICK FIRE ── */
+.qf-container{max-width:680px;margin:0 auto}
+.qf-progress{background:var(--border);border-radius:99px;height:6px;margin-bottom:24px;overflow:hidden}
+.qf-progress-fill{background:var(--teal);height:100%;border-radius:99px;transition:width .4s}
+.qf-score-row{display:flex;justify-content:space-between;margin-bottom:10px;font-size:.85rem;color:var(--text-dim)}
+.qf-question-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 28px 24px;margin-bottom:20px}
+.qf-q-tag{font-size:.75rem;color:var(--teal);text-transform:uppercase;margin-bottom:12px}
+.qf-q-text{font-size:1.05rem;line-height:1.6;margin-bottom:8px}
+.qf-options{display:grid;gap:10px;margin-top:16px}
+.qf-opt{background:var(--navy2);border:2px solid var(--border);border-radius:10px;padding:12px 18px;cursor:pointer;font-size:.92rem;text-align:left;transition:all .2s;color:var(--text)}
+.qf-opt:hover:not(:disabled){border-color:var(--teal);background:var(--card2)}
+.qf-opt.correct{border-color:#22c55e;background:#14532d30;color:#4ade80}
+.qf-opt.wrong{border-color:var(--rose);background:#4c0519.20;color:#f87171}
+.qf-opt:disabled{cursor:default}
+.qf-explain{background:var(--navy2);border-radius:10px;padding:14px 18px;margin-top:12px;font-size:.85rem;color:var(--text-dim);line-height:1.6;display:none}
+.qf-next{background:var(--teal);border:none;border-radius:10px;padding:11px 28px;color:#fff;font-size:.95rem;font-weight:600;cursor:pointer;margin-top:16px;display:none;transition:background .2s}
+.qf-next:hover{background:var(--teal2)}
+.qf-result-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px;text-align:center}
+.qf-result-card .big-score{font-size:3.5rem;font-weight:800;color:var(--teal);margin:16px 0 8px}
+.qf-result-card p{color:var(--text-dim);margin-bottom:24px}
+.qf-restart{background:var(--teal);border:none;border-radius:10px;padding:12px 32px;color:#fff;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .2s}
+.qf-restart:hover{background:var(--teal2)}
+
+/* ── DERIVE IT ── */
+.derive-container{max-width:780px;margin:0 auto}
+.derive-topic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:28px}
+.derive-topic-btn{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:16px 18px;cursor:pointer;text-align:left;transition:all .25s}
+.derive-topic-btn:hover,.derive-topic-btn.active{border-color:var(--teal);background:var(--card2)}
+.derive-topic-btn .dt-chapter{font-size:.7rem;color:var(--teal);text-transform:uppercase;margin-bottom:4px}
+.derive-topic-btn .dt-name{font-size:.9rem;font-weight:600}
+.derive-input-area{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px}
+.derive-input-area h3{margin-bottom:14px;font-size:1rem}
+.derive-prompt{width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:.9rem;resize:vertical;min-height:80px;outline:none;transition:border .2s;font-family:inherit}
+.derive-prompt:focus{border-color:var(--teal)}
+.derive-ask-btn{background:var(--teal);border:none;border-radius:10px;padding:11px 28px;color:#fff;font-size:.95rem;font-weight:600;cursor:pointer;margin-top:12px;transition:background .2s}
+.derive-ask-btn:hover{background:var(--teal2)}
+.derive-ask-btn:disabled{opacity:.5;cursor:default}
+.derive-response{background:var(--navy2);border-radius:12px;padding:20px;margin-top:18px;font-size:.9rem;line-height:1.7;display:none;min-height:60px}
+.derive-response.loading::after{content:'';display:inline-block;width:14px;height:14px;border:2px solid var(--teal);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-left:8px}
+
+/* ── MEMORY LAB ── */
+.memory-container{max-width:700px;margin:0 auto}
+.memory-stats-row{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+.mem-stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;flex:1;min-width:120px;text-align:center}
+.mem-stat .ms-num{font-size:1.8rem;font-weight:800;color:var(--teal)}
+.mem-stat .ms-label{font-size:.75rem;color:var(--text-dim);margin-top:2px}
+.mem-box-row{display:flex;gap:8px;margin-bottom:20px;justify-content:center;flex-wrap:wrap}
+.mem-box{background:var(--card);border:2px solid var(--border);border-radius:10px;padding:8px 16px;font-size:.8rem;cursor:pointer;transition:all .2s}
+.mem-box.active{border-color:var(--teal);color:var(--teal)}
+.mem-session-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px;text-align:center;min-height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.mem-formula-display{background:var(--navy2);border-radius:10px;padding:18px 22px;width:100%;font-size:1rem;margin-bottom:8px;overflow-x:auto}
+.mem-reveal-btn{background:var(--teal);border:none;border-radius:10px;padding:11px 32px;color:#fff;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .2s}
+.mem-reveal-btn:hover{background:var(--teal2)}
+.mem-grade-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.mem-grade{border:none;border-radius:10px;padding:10px 24px;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s}
+.mem-grade.again{background:#4c0519;color:#f87171;border:1px solid var(--rose)}
+.mem-grade.hard{background:#451a03;color:#fb923c;border:1px solid #f97316}
+.mem-grade.good{background:#14532d;color:#4ade80;border:1px solid #22c55e}
+.mem-grade.easy{background:#1e3a5f;color:#60a5fa;border:1px solid #3b82f6}
+.mem-done{text-align:center;padding:40px;color:var(--text-dim)}
+.mem-done .big-tick{font-size:3rem;margin-bottom:12px}
+
+/* ── PARENT DASH ── */
+#parent-dash{display:none;max-width:1000px;margin:0 auto;padding:24px 20px}
+.dash-header{margin-bottom:28px}
+.dash-header h2{font-size:1.4rem;font-weight:700;color:var(--teal)}
+.dash-header p{color:var(--text-dim);font-size:.85rem;margin-top:4px}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:28px}
+.dash-stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 18px}
+.dash-stat .ds-label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.dash-stat .ds-val{font-size:2rem;font-weight:800;color:var(--teal)}
+.dash-stat .ds-sub{font-size:.78rem;color:var(--text-dim);margin-top:4px}
+.activity-log{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.activity-log .al-head{padding:16px 20px;border-bottom:1px solid var(--border);font-weight:600;font-size:.9rem}
+.activity-item{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;font-size:.85rem}
+.activity-item:last-child{border-bottom:none}
+.ai-icon{font-size:1.2rem;width:32px;text-align:center}
+.ai-text{flex:1;color:var(--text-dim)}
+.ai-text strong{color:var(--text)}
+.ai-time{font-size:.75rem;color:var(--text-dim);white-space:nowrap}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 20px;font-size:.85rem;opacity:0;transition:all .3s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── SECTION HEADING ── */
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.section-head h2{font-size:1.15rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.section-head p{color:var(--text-dim);font-size:.82rem;margin-top:3px}
+
+.hidden{display:none!important}
+.tag-pill{background:var(--navy2);border:1px solid var(--border);border-radius:99px;padding:3px 10px;font-size:.73rem;color:var(--text-dim)}
+
+/* Responsive */
+@media(max-width:640px){
+  .header-nav{gap:2px}
+  .nav-btn{padding:6px 9px;font-size:.75rem}
+  .vault-grid{grid-template-columns:1fr}
+  .dash-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="atom">⚛️</span>
+      <h1>APBIE — Chemistry</h1>
+      <p>IIT JEE &amp; Intermediate 1st Year Mastery</p>
+    </div>
+    <input id="login-email" class="login-input" type="email" placeholder="Email" autocomplete="username"/>
+    <input id="login-password" class="login-input" type="password" placeholder="Password" autocomplete="current-password"/>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="login-err"></div>
+    <div class="quick-logins">
+      <p>Quick sign-in</p>
+      <button class="quick-btn" onclick="quickLogin('charan@chem.sg','Abcd1234')">🎓 Charan (Student) — charan@chem.sg</button>
+      <button class="quick-btn" onclick="quickLogin('parent@chem.sg','Futr*2050')">👨‍👩‍👦 Parent — parent@chem.sg</button>
+      <button class="quick-btn" onclick="quickLogin('teacher@chem.sg','Futr*2050')">📋 Teacher — teacher@chem.sg</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HEADER ── -->
+<header id="app-header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <span>⚛️</span>
+      <div><h2>APBIE Chemistry</h2><small>IIT JEE Ready</small></div>
+    </div>
+    <nav class="header-nav">
+      <button class="nav-btn active" onclick="switchTab('vault')"    id="tab-vault">📚 Formula Vault</button>
+      <button class="nav-btn"        onclick="switchTab('quickfire')" id="tab-quickfire">⚡ Quick Fire</button>
+      <button class="nav-btn"        onclick="switchTab('derive')"    id="tab-derive">🔬 Derive It</button>
+      <button class="nav-btn"        onclick="switchTab('memory')"    id="tab-memory">🧠 Memory Lab</button>
+    </nav>
+    <div class="header-user">
+      <div class="avatar" id="header-avatar"></div>
+      <button class="signout-btn" onclick="doSignOut()">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<!-- ── MAIN ── -->
+<main id="app-main">
+
+  <!-- CHAPTER BAR (all tabs) -->
+  <div class="chapter-bar" id="chapter-bar"></div>
+
+  <!-- FORMULA VAULT -->
+  <section id="tab-vault-content">
+    <div class="section-head">
+      <div><h2>📚 Formula Vault</h2><p>All formulas, laws & equations — star to track key ones</p></div>
+      <span class="tag-pill" id="vault-count"></span>
+    </div>
+    <div class="vault-grid" id="vault-grid"></div>
+  </section>
+
+  <!-- QUICK FIRE -->
+  <section id="tab-quickfire-content" class="hidden">
+    <div class="section-head">
+      <div><h2>⚡ Quick Fire</h2><p>MCQ drill — answer fast, learn from mistakes</p></div>
+    </div>
+    <div class="qf-container" id="qf-container"></div>
+  </section>
+
+  <!-- DERIVE IT -->
+  <section id="tab-derive-content" class="hidden">
+    <div class="section-head">
+      <div><h2>🔬 Derive It</h2><p>Pick a topic, ask Claude to explain or derive it for you</p></div>
+    </div>
+    <div class="derive-container" id="derive-container"></div>
+  </section>
+
+  <!-- MEMORY LAB -->
+  <section id="tab-memory-content" class="hidden">
+    <div class="section-head">
+      <div><h2>🧠 Memory Lab</h2><p>Spaced repetition — formulas you need to memorise</p></div>
+    </div>
+    <div class="memory-container" id="memory-container"></div>
+  </section>
+
+</main>
+
+<!-- PARENT/TEACHER DASH -->
+<div id="parent-dash">
+  <div class="dash-header">
+    <h2 id="dash-title">📊 Parent Dashboard</h2>
+    <p>Charan's Chemistry progress — live from Firestore</p>
+  </div>
+  <div class="dash-grid" id="dash-grid"></div>
+  <div class="activity-log">
+    <div class="al-head">Recent Activity</div>
+    <div id="activity-list"><div class="activity-item"><span class="ai-text">Loading…</span></div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════ FIREBASE CONFIG ═══════════════
+const FIREBASE_CONFIG = {
+  apiKey: "REPLACE_WITH_FIREBASE_API_KEY",
+  authDomain: "REPLACE_WITH_PROJECT_ID.firebaseapp.com",
+  projectId: "REPLACE_WITH_PROJECT_ID",
+  storageBucket: "REPLACE_WITH_PROJECT_ID.firebasestorage.app",
+  messagingSenderId: "REPLACE_WITH_SENDER_ID",
+  appId: "REPLACE_WITH_APP_ID"
+};
+
+const ACCOUNTS = {
+  "charan@chem.sg":  { name:"Charan",  role:"student", color:"#14b8a6", initial:"C" },
+  "parent@chem.sg":  { name:"Parent",  role:"parent",  color:"#f59e0b", initial:"P" },
+  "teacher@chem.sg": { name:"Teacher", role:"teacher", color:"#7c3aed", initial:"T" }
+};
+
+let fApp, fAuth, fDb;
+let currentUser=null, currentRole=null, currentUid=null;
+let progress = { stars:{}, qf:{}, sr:{}, notes:{} };
+
+// ═══════════════ CHEMISTRY DATA ═══════════════
+const CHAPTERS = [
+  { id:"ch1", name:"Basic Concepts", short:"Basic Concepts" },
+  { id:"ch2", name:"Structure of Atom", short:"Atom Structure" },
+  { id:"ch3", name:"Periodic Table", short:"Periodic Table" },
+  { id:"ch4", name:"Chemical Bonding", short:"Bonding" },
+  { id:"ch5", name:"Thermodynamics", short:"Thermo" },
+  { id:"ch6", name:"Equilibrium", short:"Equilibrium" },
+  { id:"ch7", name:"Redox & Estimation", short:"Redox" },
+  { id:"ch8", name:"Organic Chemistry", short:"Organic" },
+  { id:"ch9", name:"Hydrocarbons", short:"Hydrocarbons" },
+];
+
+const FORMULAS = [
+  // CH1 - Basic Concepts
+  { id:"f1",  ch:"ch1", name:"Moles from Mass",           formula:"n = \\dfrac{\\text{mass (g)}}{\\text{molar mass (g/mol)}}", note:"n in moles; molar mass from periodic table" },
+  { id:"f2",  ch:"ch1", name:"Moles from Particles",      formula:"n = \\dfrac{N}{N_A}\\quad(N_A=6.022\\times10^{23})", note:"Avogadro's number connects moles to actual particle count" },
+  { id:"f3",  ch:"ch1", name:"Moles of Gas at STP",       formula:"n = \\dfrac{V_{\\text{(L at STP)}}}{22.4\\text{ L}}", note:"Valid only at STP (0°C, 1 atm)" },
+  { id:"f4",  ch:"ch1", name:"Molarity",                  formula:"M = \\dfrac{n_{\\text{solute}}}{V_{\\text{solution (L)}}}=\\dfrac{w}{M_r}\\times\\dfrac{1000}{V_{\\text{mL}}}", note:"Temperature-dependent; units mol/L" },
+  { id:"f5",  ch:"ch1", name:"Molality",                  formula:"m = \\dfrac{n_{\\text{solute}}}{W_{\\text{solvent (kg)}}}", note:"Temperature-independent; units mol/kg" },
+  { id:"f6",  ch:"ch1", name:"Normality",                 formula:"N = \\dfrac{w}{\\text{GEW}}\\times\\dfrac{1000}{V_{\\text{mL}}}", note:"GEW = Molar mass / valency (or basicity/acidity)" },
+  { id:"f7",  ch:"ch1", name:"Mole Fraction",             formula:"x_A = \\dfrac{n_A}{n_A+n_B},\\quad\\sum x_i = 1", note:"Dimensionless; sum of all mole fractions = 1" },
+  { id:"f8",  ch:"ch1", name:"Mass Percent",              formula:"\\%w/w = \\dfrac{\\text{mass of solute}}{\\text{mass of solution}}\\times100", note:"Dimensionless; independent of temperature" },
+  { id:"f9",  ch:"ch1", name:"Empirical → Molecular Formula", formula:"M_r = n\\times E_r\\;\\text{where }n=\\dfrac{M_r}{E_r}", note:"MF = (EF)_n; find n by dividing molecular weight by empirical weight" },
+  { id:"f10", ch:"ch1", name:"1 amu in grams",            formula:"1\\text{ amu} = 1.66056\\times10^{-24}\\text{ g}", note:"1/12 th mass of Carbon-12 atom" },
+
+  // CH2 - Structure of Atom
+  { id:"f11", ch:"ch2", name:"Planck's Quantum",          formula:"E=h\\nu=\\dfrac{hc}{\\lambda}=hc\\bar{\\nu}", note:"h = 6.626×10⁻³⁴ J·s; c = 3×10⁸ m/s; ν̄ = 1/λ" },
+  { id:"f12", ch:"ch2", name:"Photoelectric Effect",      formula:"h\\nu = W_0 + \\tfrac{1}{2}mv^2 = h\\nu_0 + KE", note:"W₀ = hν₀ = work function (threshold energy)" },
+  { id:"f13", ch:"ch2", name:"Bohr Radius (nth orbit)",   formula:"r_n = 0.529\\times\\dfrac{n^2}{Z}\\text{ Å}", note:"For H-like species; n = principal quantum number, Z = atomic number" },
+  { id:"f14", ch:"ch2", name:"Bohr Energy (nth orbit)",   formula:"E_n = -2.18\\times10^{-18}\\times\\dfrac{Z^2}{n^2}\\text{ J/atom}", note:"Negative sign = bound state; energy increases (less negative) as n increases" },
+  { id:"f15", ch:"ch2", name:"Rydberg Equation",          formula:"\\bar{\\nu} = R_H\\left[\\dfrac{1}{n_1^2}-\\dfrac{1}{n_2^2}\\right],\\; R_H=109677\\text{ cm}^{-1}", note:"n₂ > n₁; gives wavenumber of spectral line. Lyman(UV): n₁=1; Balmer(Vis): n₁=2" },
+  { id:"f16", ch:"ch2", name:"de Broglie Wavelength",     formula:"\\lambda = \\dfrac{h}{mv} = \\dfrac{h}{p}", note:"All matter has wave nature; important for electrons in Bohr orbits" },
+  { id:"f17", ch:"ch2", name:"Heisenberg Uncertainty",    formula:"\\Delta x\\cdot\\Delta p \\geq \\dfrac{h}{4\\pi}", note:"Cannot know exact position AND momentum simultaneously" },
+  { id:"f18", ch:"ch2", name:"Orbital Nodes",             formula:"\\text{Radial}=n-l-1\\quad\\text{Angular}=l\\quad\\text{Total}=n-1", note:"For 4d: n=4, l=2 → Radial=1, Angular=2, Total=3" },
+  { id:"f19", ch:"ch2", name:"Bohr Angular Momentum",     formula:"mvr = \\dfrac{nh}{2\\pi}", note:"Quantization condition; only certain orbits allowed" },
+  { id:"f20", ch:"ch2", name:"Max electrons per shell",   formula:"\\text{Max }e^- = 2n^2", note:"n=1→2; n=2→8; n=3→18; n=4→32" },
+
+  // CH3 - Periodic Table
+  { id:"f21", ch:"ch3", name:"Moseley's Law",             formula:"\\sqrt{\\nu} = a(Z-b)", note:"ν = X-ray frequency; a, b = constants; Z = atomic number" },
+  { id:"f22", ch:"ch3", name:"Polarizing Power",          formula:"\\text{Polarizing Power} \\propto \\dfrac{\\text{ionic charge}}{(\\text{ionic radius})^2}", note:"Used to explain diagonal relationships and Fajan's rules" },
+  { id:"f23", ch:"ch3", name:"IE Order (2nd period)",     formula:"Li<B<Be<C<O<N<F<Ne", note:"Be(2s²) and N(2p³ half-filled) are extra stable → anomalously high IE" },
+  { id:"f24", ch:"ch3", name:"Electronegativity (Pauling)", formula:"\\chi_F = 4.0\\;(\\text{highest}),\\quad\\chi_{Cs}\\approx0.7\\;(\\text{lowest})", note:"Fluorine most electronegative; increases across period, decreases down group" },
+
+  // CH4 - Chemical Bonding
+  { id:"f25", ch:"ch4", name:"Formal Charge",             formula:"FC = V - L - \\tfrac{1}{2}B", note:"V=valence e⁻, L=lone pair e⁻, B=bonding e⁻; best structure has FC near 0" },
+  { id:"f26", ch:"ch4", name:"Dipole Moment",             formula:"\\mu = q\\times d\\quad[1\\text{ D}=3.336\\times10^{-30}\\text{ C·m}]", note:"Vector quantity; points from + to – charge; zero for symmetric molecules" },
+  { id:"f27", ch:"ch4", name:"% Ionic Character",         formula:"\\%\\text{ Ionic}=\\dfrac{\\mu_{\\text{obs}}}{\\mu_{\\text{calc}}}\\times100", note:"μ_calc = charge × bond length (if fully ionic)" },
+  { id:"f28", ch:"ch4", name:"Bond Order (MO Theory)",    formula:"BO = \\dfrac{N_b - N_a}{2}", note:"N₂: BO=3 (diamagnetic); O₂: BO=2 (paramagnetic, 2 unpaired e⁻)" },
+  { id:"f29", ch:"ch4", name:"Hybridisation Table",       formula:"sp:180°\\;|\\;sp^2:120°\\;|\\;sp^3:109.5°\\;|\\;sp^3d:90°,120°\\;|\\;sp^3d^2:90°", note:"NH₃=107°(sp³); H₂O=104.5°(sp³) — lone pairs reduce angle" },
+  { id:"f30", ch:"ch4", name:"VSEPR Repulsion Order",     formula:"\\text{lp-lp} > \\text{lp-bp} > \\text{bp-bp}", note:"More repulsion → smaller bond angle; explains bent/pyramidal shapes" },
+
+  // CH5 - Thermodynamics
+  { id:"f31", ch:"ch5", name:"First Law of Thermodynamics", formula:"\\Delta U = q + w", note:"Energy conservation; q = heat absorbed by system; w = work done on system" },
+  { id:"f32", ch:"ch5", name:"Enthalpy",                  formula:"\\Delta H = \\Delta U + P\\Delta V = \\Delta U + \\Delta n_g RT", note:"Δn_g = moles of gaseous products − reactants; R=8.314 J/mol·K" },
+  { id:"f33", ch:"ch5", name:"Work (Isothermal Reversible)", formula:"w = -2.303\\,nRT\\log\\dfrac{V_2}{V_1} = -2.303\\,nRT\\log\\dfrac{P_1}{P_2}", note:"Maximum work; reversible process" },
+  { id:"f34", ch:"ch5", name:"Work (Isothermal Irreversible)", formula:"w = -P_{\\text{ext}}(V_2-V_1)", note:"Against constant external pressure" },
+  { id:"f35", ch:"ch5", name:"Gibbs Free Energy",         formula:"\\Delta G = \\Delta H - T\\Delta S", note:"ΔG<0: spontaneous; ΔG=0: equilibrium; ΔG>0: non-spontaneous" },
+  { id:"f36", ch:"ch5", name:"ΔG° and Equilibrium K",    formula:"\\Delta G^\\circ = -2.303\\,RT\\log K", note:"K>1 → ΔG°<0 (product-favored); K<1 → ΔG°>0 (reactant-favored)" },
+  { id:"f37", ch:"ch5", name:"Entropy Change",            formula:"\\Delta S = \\dfrac{q_{\\text{rev}}}{T} = \\dfrac{\\Delta H}{T}\\quad[\\text{J mol}^{-1}\\text{K}^{-1}]", note:"Spontaneous processes increase total entropy (Clausius)" },
+  { id:"f38", ch:"ch5", name:"Hess's Law",                formula:"\\Delta H_{\\text{rxn}} = \\sum\\Delta H_f^\\circ(\\text{products}) - \\sum\\Delta H_f^\\circ(\\text{reactants})", note:"Path-independent; enthalpy is a state function" },
+
+  // CH6 - Equilibrium
+  { id:"f39", ch:"ch6", name:"Equilibrium Constant Kc",  formula:"K_c = \\dfrac{[C]^c[D]^d}{[A]^a[B]^b}\\quad\\text{for }aA+bB\\rightleftharpoons cC+dD", note:"Only include aqueous/gaseous species; pure solids/liquids excluded" },
+  { id:"f40", ch:"ch6", name:"Kp – Kc Relation",         formula:"K_p = K_c(RT)^{\\Delta n_g}", note:"Δn_g = moles gaseous products − reactants; R = 0.0821 L·atm/mol·K" },
+  { id:"f41", ch:"ch6", name:"pH and pOH",               formula:"\\text{pH}=-\\log[H^+]\\;|\\;\\text{pOH}=-\\log[OH^-]\\;|\\;\\text{pH}+\\text{pOH}=14", note:"At 25°C; Kw = [H⁺][OH⁻] = 10⁻¹⁴ M²" },
+  { id:"f42", ch:"ch6", name:"Ostwald Dilution Law",     formula:"[H^+]=\\sqrt{K_a C}=C\\alpha\\;\\Rightarrow\\;\\text{pH}=\\tfrac{1}{2}(\\text{p}K_a-\\log C)", note:"For weak acids; α = degree of dissociation" },
+  { id:"f43", ch:"ch6", name:"Henderson-Hasselbalch (Acid Buffer)", formula:"\\text{pH}=\\text{p}K_a+\\log\\dfrac{[\\text{Salt}]}{[\\text{Acid}]}", note:"Acid buffer: weak acid + its conjugate base salt" },
+  { id:"f44", ch:"ch6", name:"Henderson-Hasselbalch (Base Buffer)", formula:"\\text{pOH}=\\text{p}K_b+\\log\\dfrac{[\\text{Salt}]}{[\\text{Base}]}", note:"Base buffer: weak base + its conjugate acid salt" },
+  { id:"f45", ch:"ch6", name:"Salt Hydrolysis pH",       formula:"\\text{SA+WB: }\\text{pH}=7-\\tfrac{1}{2}(\\text{p}K_b+\\log C)\\;|\\;\\text{WA+SB: }\\text{pH}=7+\\tfrac{1}{2}(\\text{p}K_a+\\log C)", note:"WA+WB: pH=7+½(pKa−pKb); SA+SB: pH=7" },
+  { id:"f46", ch:"ch6", name:"Solubility Product Ksp",   formula:"AB\\!:K_{sp}=S^2\\;|\\;AB_2\\!:4S^3\\;|\\;AB_3\\!:27S^4\\;|\\;A_2B_3\\!:108S^5", note:"S = molar solubility; precipitation if ionic product > Ksp" },
+
+  // CH7 - Redox & Estimation
+  { id:"f47", ch:"ch7", name:"% Carbon (Dumas/Liebig)",  formula:"\\%C=\\dfrac{12}{44}\\times\\dfrac{W_{CO_2}}{W_{\\text{sample}}}\\times100", note:"CO₂ from combustion of organic compound" },
+  { id:"f48", ch:"ch7", name:"% Hydrogen",               formula:"\\%H=\\dfrac{2}{18}\\times\\dfrac{W_{H_2O}}{W_{\\text{sample}}}\\times100", note:"H₂O collected using anhydrous CaCl₂" },
+  { id:"f49", ch:"ch7", name:"% Nitrogen (Dumas)",       formula:"\\%N=\\dfrac{28}{22400}\\times\\dfrac{V_{N_2}(\\text{mL at STP})}{W_{\\text{sample}}}\\times100", note:"N₂ volume measured at STP; 28 g/mol for N₂" },
+  { id:"f50", ch:"ch7", name:"% Nitrogen (Kjeldahl)",    formula:"\\%N=\\dfrac{1.4\\times N_{\\text{acid}}\\times V_{\\text{acid}}}{W_{\\text{sample}}}", note:"N = normality of acid used in back-titration" },
+  { id:"f51", ch:"ch7", name:"% Chlorine (Carius)",      formula:"\\%Cl=\\dfrac{35.5}{143.5}\\times\\dfrac{W_{AgCl}}{W_{\\text{sample}}}\\times100", note:"AgCl MW=143.5; Cl MW=35.5" },
+  { id:"f52", ch:"ch7", name:"% Sulphur (Carius)",       formula:"\\%S=\\dfrac{32}{233}\\times\\dfrac{W_{BaSO_4}}{W_{\\text{sample}}}\\times100", note:"BaSO₄ MW=233; S MW=32" },
+  { id:"f53", ch:"ch7", name:"% Phosphorus (Carius)",    formula:"\\%P=\\dfrac{62}{222}\\times\\dfrac{W_{Mg_2P_2O_7}}{W_{\\text{sample}}}\\times100", note:"Mg₂P₂O₇ MW=222; 2P atoms → 62" },
+
+  // CH8 - Organic Chemistry
+  { id:"f54", ch:"ch8", name:"Functional Group Priority", formula:"-COOH>-SO_3H>-COOR>-COCl>-CONH_2>-CN>-CHO>C=O>-OH>-NH_2>C=C>C\\equiv C", note:"For IUPAC naming; highest priority = principal characteristic group" },
+  { id:"f55", ch:"ch8", name:"Carbocation Stability",    formula:"CH_3^+<1°<2°<3°\\quad(\\text{sp}^2,\\text{ trigonal planar})", note:"Hyperconjugation and inductive effect stabilize; 3° most stable" },
+  { id:"f56", ch:"ch8", name:"Inductive Effect Order",   formula:"-NO_2>-CN>-F>-Cl>-Br>-I\\quad(\\text{-I effect});\\quad-CH_3\\quad(\\text{+I})", note:"-I withdraws e⁻ density; +I donates; affects acidity, basicity, reactivity" },
+
+  // CH9 - Hydrocarbons
+  { id:"f57", ch:"ch9", name:"Wurtz Reaction",           formula:"2\\,RX + 2\\,Na \\xrightarrow{\\text{dry ether}} R\\!-\\!R + 2\\,NaX", note:"Prepares symmetric alkanes; limitation: only same R-X groups" },
+  { id:"f58", ch:"ch9", name:"Decarboxylation",          formula:"RCOONa + NaOH \\xrightarrow{CaO,\\Delta} R\\!-\\!H + Na_2CO_3", note:"Prepares alkane with one less carbon than the acid salt" },
+  { id:"f59", ch:"ch9", name:"Markovnikov's Rule",       formula:"HX + C=C \\to H\\text{ adds to more-H carbon, }X\\text{ to less-H carbon}", note:"Anti-Markovnikov (peroxide effect): X adds to more-H carbon" },
+  { id:"f60", ch:"ch9", name:"Cyclic Polymerisation of Ethyne", formula:"3\\,C_2H_2 \\xrightarrow{\\text{Red hot Fe, 873 K}} C_6H_6\\;(\\text{Benzene})", note:"Berthelot reaction; gives aromatic benzene ring" },
+  { id:"f61", ch:"ch9", name:"Friedel-Crafts Alkylation", formula:"C_6H_6 + RCl \\xrightarrow{\\text{AlCl}_3} C_6H_5R + HCl", note:"Electrophilic aromatic substitution; introduces alkyl group" },
+  { id:"f62", ch:"ch9", name:"Friedel-Crafts Acylation", formula:"C_6H_6 + RCOCl \\xrightarrow{\\text{AlCl}_3} C_6H_5COR + HCl", note:"Introduces acyl group (ketone); less prone to rearrangement than alkylation" },
+  { id:"f63", ch:"ch9", name:"Benzene C-C Bond Length",  formula:"d_{C-C}=1.39\\text{ Å}\\;(\\text{between single }1.54\\text{ and double }1.34\\text{ Å})", note:"Resonance hybrid; all bonds equivalent; planar hexagonal ring" },
+  { id:"f64", ch:"ch9", name:"Ozonolysis",               formula:"\\text{Alkene}\\xrightarrow{1.\\,O_3\\;2.\\,Zn/H_2O}\\text{Aldehyde(s) or Ketone(s)}", note:"Identifies position of double bond by product analysis" },
+  { id:"f65", ch:"ch9", name:"Baeyer's Reagent Test",    formula:"\\text{Alkene/Alkyne}+\\text{cold alk. KMnO}_4\\to\\text{diol (glycol)} [\\text{purple}\\to\\text{colourless}]", note:"Used to detect unsaturation; also called syn-dihydroxylation" },
+];
+
+// ─── QF QUESTIONS ───
+const QF_QUESTIONS = [
+  // CH1
+  {ch:"ch1",q:"How many moles are in 10 g of water (M = 18 g/mol)?",opts:["0.36 mol","0.56 mol","1.0 mol","0.18 mol"],ans:1,exp:"n = 10/18 = 0.556 mol ≈ 0.56 mol"},
+  {ch:"ch1",q:"Molarity of 5 g NaOH (M=40) in 250 mL solution?",opts:["0.25 M","0.5 M","0.1 M","1.0 M"],ans:1,exp:"n=5/40=0.125 mol; M=0.125/0.25=0.5 M"},
+  {ch:"ch1",q:"Which concentration unit is temperature-independent?",opts:["Molarity","Normality","Molality","Formality"],ans:2,exp:"Molality uses solvent mass (kg) — not volume — so it doesn't change with temperature"},
+  {ch:"ch1",q:"Avogadro's number is approximately:",opts:["6.022×10²³","6.022×10²⁴","3.011×10²³","12.04×10²³"],ans:0,exp:"Nₐ = 6.022×10²³ mol⁻¹ — the number of entities in 1 mole"},
+  {ch:"ch1",q:"Volume occupied by 2 moles of gas at STP (22.4 L/mol)?",opts:["11.2 L","44.8 L","22.4 L","33.6 L"],ans:1,exp:"V = 2 × 22.4 = 44.8 L"},
+  // CH2
+  {ch:"ch2",q:"The de Broglie wavelength of a particle with momentum p is:",opts:["λ = hp","λ = h/p","λ = p/h","λ = h²/p"],ans:1,exp:"de Broglie: λ = h/mv = h/p"},
+  {ch:"ch2",q:"Number of radial nodes in 3p orbital:",opts:["0","1","2","3"],ans:1,exp:"Radial nodes = n−l−1 = 3−1−1 = 1"},
+  {ch:"ch2",q:"Energy of electron in 2nd orbit of H atom (Z=1):",opts:["−13.6 eV","−3.4 eV","−1.51 eV","−0.85 eV"],ans:1,exp:"Eₙ = −13.6(Z²/n²) = −13.6(1/4) = −3.4 eV"},
+  {ch:"ch2",q:"Lyman series of hydrogen spectrum lies in which region?",opts:["Visible","Infrared","Ultraviolet","Microwave"],ans:2,exp:"Lyman: n₁=1; transitions to ground state emit UV photons"},
+  {ch:"ch2",q:"Maximum number of electrons in n=3 shell:",opts:["6","8","18","32"],ans:2,exp:"Max e⁻ = 2n² = 2×9 = 18"},
+  // CH3
+  {ch:"ch3",q:"Which element has the highest electronegativity on Pauling scale?",opts:["Oxygen","Chlorine","Fluorine","Nitrogen"],ans:2,exp:"F = 4.0 on Pauling scale; most electronegative element"},
+  {ch:"ch3",q:"Electron gain enthalpy is highest for:",opts:["F","Cl","Br","O"],ans:1,exp:"Cl > F because F has compact 2p orbitals with high inter-electron repulsion"},
+  {ch:"ch3",q:"Ionization enthalpy order for 2nd period: Be vs B",opts:["Be > B","B > Be","Be = B","Cannot compare"],ans:0,exp:"Be (2s²) has fully filled s — extra stability; IE(Be) > IE(B)"},
+  {ch:"ch3",q:"Lanthanide contraction causes which pair to have nearly identical radii?",opts:["Na & K","Zr & Hf","Fe & Co","P & As"],ans:1,exp:"Lanthanide contraction makes 4d Zr and 5d Hf almost the same size"},
+  // CH4
+  {ch:"ch4",q:"Bond order of N₂ by MOT:",opts:["1","2","3","4"],ans:2,exp:"BO = (10−4)/2 = 3; N₂ has a triple bond"},
+  {ch:"ch4",q:"O₂ is paramagnetic because:",opts:["It has a double bond","It has 2 unpaired electrons in π* orbitals","All electrons are paired","It has lone pairs"],ans:1,exp:"MOT shows O₂ has 2 degenerate π* antibonding orbitals each with 1 unpaired e⁻"},
+  {ch:"ch4",q:"Hybridisation of central atom in SF₆:",opts:["sp³","sp³d","sp³d²","sp²d²"],ans:2,exp:"6 bond pairs → octahedral → sp³d² hybridisation"},
+  {ch:"ch4",q:"Bond angle of water (H₂O):",opts:["109.5°","107°","104.5°","120°"],ans:2,exp:"sp³ + 2 lone pairs → bond angle compressed to 104.5°"},
+  // CH5
+  {ch:"ch5",q:"For an adiabatic process, which condition holds?",opts:["ΔT=0","ΔP=0","q=0","ΔV=0"],ans:2,exp:"Adiabatic means no heat exchange with surroundings: q=0, so ΔU=w"},
+  {ch:"ch5",q:"ΔG < 0 implies the reaction is:",opts:["Non-spontaneous","At equilibrium","Spontaneous","Endothermic"],ans:2,exp:"Gibbs criterion: ΔG < 0 → spontaneous at constant T and P"},
+  {ch:"ch5",q:"Which is a state function?",opts:["Work","Heat","Enthalpy","None of these"],ans:2,exp:"H, U, G, S are state functions; q and w are path functions"},
+  {ch:"ch5",q:"ΔH = ΔU + ΔnᵍRT; for a reaction where Δnᵍ=2 at 300K:",opts:["ΔH = ΔU","ΔH = ΔU + 4983 J","ΔH = ΔU − 4983 J","ΔH = ΔU + 600 J"],ans:1,exp:"ΔH−ΔU = 2×8.314×300 = 4988 ≈ 4983 J/mol"},
+  // CH6
+  {ch:"ch6",q:"For the buffer CH₃COOH/CH₃COONa, if pKa=4.74 and [Salt]/[Acid]=1:",opts:["pH=3.74","pH=4.74","pH=5.74","pH=7.00"],ans:1,exp:"Henderson: pH = pKa + log(1) = 4.74 + 0 = 4.74"},
+  {ch:"ch6",q:"Ksp for AB₂ salt in terms of molar solubility S:",opts:["S²","4S³","27S⁴","S³"],ans:1,exp:"AB₂ → A²⁺ + 2B⁻; Ksp = S × (2S)² = 4S³"},
+  {ch:"ch6",q:"pH of solution of strong acid + weak base salt:",opts:["pH=7","pH>7","pH<7","pH=pKa"],ans:2,exp:"Strong acid + weak base → cationic hydrolysis → acidic solution, pH<7"},
+  {ch:"ch6",q:"Kp = Kc when:",opts:["T=0","Δnᵍ=1","Δnᵍ=0","Δnᵍ=-1"],ans:2,exp:"Kp = Kc(RT)^Δnᵍ; when Δnᵍ=0, (RT)⁰=1, so Kp=Kc"},
+  // CH7
+  {ch:"ch7",q:"In Dumas method, % N = 28/22400 × V(mL)/W × 100. What is 28?",opts:["Atomic mass of N","Molar mass of N₂","Volume constant","Avogadro constant"],ans:1,exp:"28 g/mol is the molar mass of N₂ gas; volume is measured as N₂ at STP"},
+  {ch:"ch7",q:"In Carius method, chlorine is estimated as:",opts:["NaCl","KCl","AgCl","HCl"],ans:2,exp:"Organic Cl → AgNO₃ → AgCl precipitate; weighed to calculate %Cl"},
+  {ch:"ch7",q:"KMnO₄ acts as ______ in redox titrations:",opts:["External indicator","Self indicator","Internal indicator","No indicator needed"],ans:1,exp:"KMnO₄ is deep purple; end point = pale pink — it is its own indicator"},
+  // CH8
+  {ch:"ch8",q:"Carbocation stability order:",opts:["3°>2°>1°>CH₃⁺","CH₃⁺>1°>2°>3°","3°>CH₃⁺>1°>2°","1°>2°>3°>CH₃⁺"],ans:0,exp:"Hyperconjugation and +I effect stabilise 3° > 2° > 1° > methyl"},
+  {ch:"ch8",q:"Homolytic fission gives:",opts:["Carbocations","Carbanions","Free radicals","Ions"],ans:2,exp:"Homolytic: each fragment gets one electron → free radicals (neutral)"},
+  {ch:"ch8",q:"Which method is used to separate miscible liquids with different boiling points?",opts:["Sublimation","Crystallisation","Fractional distillation","Steam distillation"],ans:2,exp:"Fractional distillation separates miscible liquids with different b.p.s via fractionating column"},
+  // CH9
+  {ch:"ch9",q:"Markovnikov's rule: HBr addition to propene gives mainly:",opts:["1-bromopropane","2-bromopropane","Both equally","Bromine radical"],ans:1,exp:"H adds to CH₂= (more H), Br adds to CH= (less H) → 2-bromopropane"},
+  {ch:"ch9",q:"Product of ozonolysis of ethene (CH₂=CH₂) with Zn/H₂O:",opts:["Ethanol","Formaldehyde (HCHO)","Acetaldehyde","Acetic acid"],ans:1,exp:"CH₂=CH₂ → 2 HCHO (methanal/formaldehyde)"},
+  {ch:"ch9",q:"Friedel-Crafts alkylation catalyst:",opts:["HCl","FeCl₃","Anhydrous AlCl₃","Pd/C"],ans:2,exp:"Anhydrous AlCl₃ is a Lewis acid catalyst; generates carbocation electrophile"},
+  {ch:"ch9",q:"C-C bond length in benzene (1.39 Å) is:",opts:["Same as single bond","Same as double bond","Between single and double","Longer than single bond"],ans:2,exp:"Resonance hybrid: C-C single=1.54Å, C=C double=1.34Å; benzene=1.39Å (intermediate)"},
+];
+
+// ─── DERIVE TOPICS ───
+const DERIVE_TOPICS = [
+  {ch:"ch1",name:"Why molality is temperature-independent"},
+  {ch:"ch1",name:"Derive Avogadro's law from kinetic theory"},
+  {ch:"ch2",name:"Derive Bohr's radius formula"},
+  {ch:"ch2",name:"Explain Heisenberg Uncertainty with electron example"},
+  {ch:"ch2",name:"Why are Cr and Cu electronic config anomalous?"},
+  {ch:"ch3",name:"Explain lanthanide contraction and its effects"},
+  {ch:"ch3",name:"Why does Cl have higher electron gain enthalpy than F?"},
+  {ch:"ch4",name:"Derive bond order of O₂ using MOT"},
+  {ch:"ch4",name:"Explain why water is bent using VSEPR"},
+  {ch:"ch5",name:"Derive ΔG = ΔH − TΔS from thermodynamic principles"},
+  {ch:"ch5",name:"Explain Hess's Law with a Born-Haber cycle example"},
+  {ch:"ch6",name:"Derive Henderson-Hasselbalch equation"},
+  {ch:"ch6",name:"Explain Le Chatelier's principle for Haber process"},
+  {ch:"ch7",name:"Derive % Nitrogen by Dumas method formula"},
+  {ch:"ch8",name:"Explain electrophilic vs nucleophilic reactions"},
+  {ch:"ch9",name:"Explain Markovnikov's rule with mechanism"},
+  {ch:"ch9",name:"Why does benzene prefer substitution over addition?"},
+];
+
+// ═══════════════ FIREBASE INIT ═══════════════
+function initFirebase(){
+  try{
+    fApp  = firebase.initializeApp(FIREBASE_CONFIG);
+    fAuth = firebase.auth();
+    fDb   = firebase.firestore();
+    fAuth.onAuthStateChanged(async user=>{
+      if(user){
+        currentUid  = user.uid;
+        const profile = ACCOUNTS[user.email]||{name:user.email.split('@')[0],role:'student',color:'#14b8a6',initial:'?'};
+        currentUser = {...profile, email:user.email, uid:user.uid};
+        currentRole = profile.role;
+        await onLoginSuccess();
+      } else showLoginScreen();
+    });
+  } catch(e){ console.warn('Firebase offline:',e.message); showLoginScreen(); }
+}
+
+function showLoginScreen(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app-header').style.display='none';
+  document.getElementById('app-main').style.display='none';
+  document.getElementById('parent-dash').style.display='none';
+}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass =document.getElementById('login-password').value;
+  const err  =document.getElementById('login-err');
+  err.textContent='';
+  if(!email||!pass){err.textContent='Please enter email and password.';return;}
+  try{ await fAuth.signInWithEmailAndPassword(email,pass); }
+  catch(e){ err.textContent=e.message; }
+}
+
+function quickLogin(email,pass){
+  document.getElementById('login-email').value=email;
+  document.getElementById('login-password').value=pass;
+  doLogin();
+}
+
+async function doSignOut(){
+  await fAuth.signOut();
+  progress={stars:{},qf:{},sr:{},notes:{}};
+  showLoginScreen();
+}
+
+async function onLoginSuccess(){
+  document.getElementById('login-screen').style.display='none';
+  const av=document.getElementById('header-avatar');
+  av.textContent=currentUser.initial;
+  av.style.background=currentUser.color;
+
+  if(currentRole==='parent'||currentRole==='teacher'){
+    document.getElementById('app-header').style.display='block';
+    document.getElementById('parent-dash').style.display='block';
+    document.getElementById('app-main').style.display='none';
+    // hide nav
+    document.querySelector('.header-nav').style.display='none';
+    document.getElementById('dash-title').textContent = currentRole==='teacher'?'📋 Teacher Dashboard':'📊 Parent Dashboard';
+    await loadParentDash();
+  } else {
+    document.getElementById('app-header').style.display='block';
+    document.getElementById('app-main').style.display='block';
+    document.getElementById('parent-dash').style.display='none';
+    document.querySelector('.header-nav').style.display='flex';
+    await loadProgress();
+    buildChapterBar('vault');
+    renderVault('all');
+    buildDerive();
+    buildMemory();
+  }
+}
+
+// ═══════════════ PROGRESS (Firestore) ═══════════════
+async function loadProgress(){
+  try{
+    const doc=await fDb.collection('users').doc(currentUid).collection('apbie_chemistry').doc('data').get();
+    if(doc.exists) progress={...progress,...doc.data()};
+  } catch(e){}
+}
+
+async function saveProgress(){
+  try{
+    await fDb.collection('users').doc(currentUid).collection('apbie_chemistry').doc('data').set(progress,{merge:true});
+  } catch(e){}
+}
+
+async function logEvent(type,detail){
+  try{
+    await fDb.collection('users').doc(currentUid).collection('apbie_chemistry').doc('data').collection('events').add({
+      type, detail, ts: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e){}
+}
+
+// ═══════════════ TABS ═══════════════
+let currentTab='vault';
+function switchTab(tab){
+  ['vault','quickfire','derive','memory'].forEach(t=>{
+    document.getElementById('tab-'+t+'-content').classList.toggle('hidden',t!==tab);
+    document.getElementById('tab-'+t).classList.toggle('active',t===tab);
+  });
+  currentTab=tab;
+  const bar=document.getElementById('chapter-bar');
+  bar.style.display = (tab==='derive'||tab==='memory')?'none':'flex';
+  if(tab==='quickfire') initQF(currentChapter);
+  if(tab==='memory')    renderMemory();
+}
+
+// ═══════════════ CHAPTER BAR ═══════════════
+let currentChapter='all';
+function buildChapterBar(tab){
+  const bar=document.getElementById('chapter-bar');
+  bar.innerHTML='';
+  const allBtn=document.createElement('button');
+  allBtn.className='ch-btn active'; allBtn.textContent='All';
+  allBtn.onclick=()=>selectChapter('all',allBtn,tab);
+  bar.appendChild(allBtn);
+  CHAPTERS.forEach(ch=>{
+    const btn=document.createElement('button');
+    btn.className='ch-btn'; btn.textContent=ch.short;
+    btn.onclick=()=>selectChapter(ch.id,btn,tab);
+    bar.appendChild(btn);
+  });
+}
+
+function selectChapter(id,btn,tab){
+  document.querySelectorAll('.ch-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentChapter=id;
+  if(tab==='vault') renderVault(id);
+  if(tab==='quickfire') initQF(id);
+}
+
+// ═══════════════ FORMULA VAULT ═══════════════
+function renderVault(chId){
+  const grid=document.getElementById('vault-grid');
+  const filtered=chId==='all'?FORMULAS:FORMULAS.filter(f=>f.ch===chId);
+  document.getElementById('vault-count').textContent=filtered.length+' formulas';
+  grid.innerHTML='';
+  filtered.forEach(f=>{
+    const ch=CHAPTERS.find(c=>c.id===f.ch);
+    const starred=progress.stars&&progress.stars[f.id];
+    const card=document.createElement('div');
+    card.className='formula-card';
+    card.innerHTML=`
+      <button class="star-btn ${starred?'starred':''}" id="star-${f.id}" onclick="toggleStar('${f.id}')">★</button>
+      <div class="f-tag">⚗️ ${ch?ch.name:f.ch}</div>
+      <div class="f-name">${f.name}</div>
+      <div class="f-formula">$${f.formula}$</div>
+      <div class="f-note">${f.note}</div>
+    `;
+    grid.appendChild(card);
+  });
+  // Re-render KaTeX
+  if(window.renderMathInElement){
+    setTimeout(()=>renderMathInElement(grid,{delimiters:[{left:'$',right:'$',display:false},{left:'$$',right:'$$',display:true}]}),50);
+  }
+}
+
+async function toggleStar(fid){
+  if(!progress.stars) progress.stars={};
+  progress.stars[fid]=!progress.stars[fid];
+  const btn=document.getElementById('star-'+fid);
+  if(btn){ btn.classList.toggle('starred',progress.stars[fid]); }
+  await saveProgress();
+  toast(progress.stars[fid]?'⭐ Formula starred':'Star removed');
+}
+
+// ═══════════════ QUICK FIRE ═══════════════
+let qfState={qs:[],idx:0,correct:0,answered:false};
+
+function initQF(chId){
+  const pool=chId==='all'?QF_QUESTIONS:QF_QUESTIONS.filter(q=>q.ch===chId);
+  const shuffled=[...pool].sort(()=>Math.random()-.5).slice(0,Math.min(10,pool.length));
+  qfState={qs:shuffled,idx:0,correct:0,answered:false};
+  renderQF();
+}
+
+function renderQF(){
+  const c=document.getElementById('qf-container');
+  if(qfState.qs.length===0){c.innerHTML='<p style="color:var(--text-dim);text-align:center;padding:40px">No questions for this chapter yet.</p>';return;}
+  if(qfState.idx>=qfState.qs.length){renderQFResult();return;}
+  const q=qfState.qs[qfState.idx];
+  c.innerHTML=`
+    <div class="qf-score-row"><span>Q${qfState.idx+1} of ${qfState.qs.length}</span><span>✅ ${qfState.correct}</span></div>
+    <div class="qf-progress"><div class="qf-progress-fill" style="width:${(qfState.idx/qfState.qs.length)*100}%"></div></div>
+    <div class="qf-question-card">
+      <div class="qf-q-tag">⚡ Quick Fire</div>
+      <div class="qf-q-text">${q.q}</div>
+      <div class="qf-options" id="qf-opts">
+        ${q.opts.map((o,i)=>`<button class="qf-opt" onclick="answerQF(${i})" id="qf-opt-${i}">${String.fromCharCode(65+i)}. ${o}</button>`).join('')}
+      </div>
+      <div class="qf-explain" id="qf-explain"></div>
+      <button class="qf-next" id="qf-next" onclick="nextQF()">Next →</button>
+    </div>
+  `;
+  if(window.renderMathInElement) setTimeout(()=>renderMathInElement(c,{delimiters:[{left:'$',right:'$',display:false}]}),50);
+}
+
+async function answerQF(idx){
+  if(qfState.answered) return;
+  qfState.answered=true;
+  const q=qfState.qs[qfState.idx];
+  const correct=idx===q.ans;
+  if(correct) qfState.correct++;
+  document.querySelectorAll('.qf-opt').forEach((b,i)=>{
+    b.disabled=true;
+    if(i===q.ans) b.classList.add('correct');
+    else if(i===idx) b.classList.add('wrong');
+  });
+  const exp=document.getElementById('qf-explain');
+  if(exp){exp.style.display='block'; exp.textContent='💡 '+q.exp;}
+  const nx=document.getElementById('qf-next');
+  if(nx) nx.style.display='inline-block';
+}
+
+function nextQF(){
+  qfState.idx++; qfState.answered=false;
+  renderQF();
+  if(qfState.idx>=qfState.qs.length) saveQFScore();
+}
+
+async function saveQFScore(){
+  const ch=currentChapter;
+  if(!progress.qf) progress.qf={};
+  if(!progress.qf[ch]) progress.qf[ch]={correct:0,total:0};
+  progress.qf[ch].correct+=qfState.correct;
+  progress.qf[ch].total+=qfState.qs.length;
+  await saveProgress();
+  await logEvent('quickfire',{ch,correct:qfState.correct,total:qfState.qs.length});
+}
+
+function renderQFResult(){
+  const pct=Math.round((qfState.correct/qfState.qs.length)*100);
+  const emoji=pct>=80?'🎉':pct>=60?'👍':'📚';
+  document.getElementById('qf-container').innerHTML=`
+    <div class="qf-result-card">
+      <div style="font-size:2.5rem">${emoji}</div>
+      <div class="big-score">${pct}%</div>
+      <p>${qfState.correct} / ${qfState.qs.length} correct</p>
+      <button class="qf-restart" onclick="initQF(currentChapter)">Try Again</button>
+    </div>
+  `;
+}
+
+// ═══════════════ DERIVE IT ═══════════════
+function buildDerive(){
+  const c=document.getElementById('derive-container');
+  let topicHtml=DERIVE_TOPICS.map((t,i)=>{
+    const ch=CHAPTERS.find(c=>c.id===t.ch);
+    return `<button class="derive-topic-btn" id="dt-${i}" onclick="selectDeriveTopic(${i},'${t.name}','${t.ch}')">
+      <div class="dt-chapter">⚗️ ${ch?ch.name:t.ch}</div>
+      <div class="dt-name">${t.name}</div>
+    </button>`;
+  }).join('');
+  c.innerHTML=`
+    <div class="derive-topic-grid">${topicHtml}</div>
+    <div class="derive-input-area" id="derive-input-area" style="display:none">
+      <h3 id="derive-selected-topic"></h3>
+      <textarea class="derive-prompt" id="derive-prompt" placeholder="Ask anything — e.g. 'Explain step by step for a Class 11 student' or 'Give me a JEE-level question on this'"></textarea>
+      <button class="derive-ask-btn" id="derive-ask-btn" onclick="askDerive()">🔬 Ask Claude</button>
+      <div class="derive-response" id="derive-response"></div>
+    </div>
+  `;
+}
+
+let selectedDeriveTopic='';
+function selectDeriveTopic(idx,name,ch){
+  document.querySelectorAll('.derive-topic-btn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  selectedDeriveTopic=name;
+  const area=document.getElementById('derive-input-area');
+  area.style.display='block';
+  document.getElementById('derive-selected-topic').textContent='🔬 '+name;
+  document.getElementById('derive-prompt').value='';
+  document.getElementById('derive-response').style.display='none';
+  area.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+async function askDerive(){
+  const prompt=document.getElementById('derive-prompt').value.trim();
+  const resp=document.getElementById('derive-response');
+  const btn=document.getElementById('derive-ask-btn');
+  if(!selectedDeriveTopic){toast('Pick a topic first');return;}
+  const question=prompt||`Explain "${selectedDeriveTopic}" clearly for a Class 11 / JEE Main student. Use step-by-step reasoning and include the key formula with explanation.`;
+  resp.style.display='block';
+  resp.innerHTML='<span style="color:var(--teal)">Thinking…</span>';
+  btn.disabled=true;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:1000,
+        system:`You are an expert Chemistry tutor for IIT JEE and Intermediate (Class 11) students. 
+Give clear, structured explanations. Use LaTeX for formulas wrapped in $...$. 
+Keep it concise but complete — include derivations where relevant, key points, and a memory tip at the end.
+Topic context: ${selectedDeriveTopic}`,
+        messages:[{role:'user',content:question}]
+      })
+    });
+    const data=await res.json();
+    const text=data.content?.find(b=>b.type==='text')?.text||'No response';
+    resp.innerHTML=`<div style="white-space:pre-wrap;line-height:1.8">${text}</div>`;
+    if(window.renderMathInElement) setTimeout(()=>renderMathInElement(resp,{delimiters:[{left:'$',right:'$',display:false},{left:'$$',right:'$$',display:true}]}),50);
+    await logEvent('derive',{topic:selectedDeriveTopic});
+  } catch(e){
+    resp.innerHTML='<span style="color:var(--rose)">Error: '+e.message+'</span>';
+  }
+  btn.disabled=false;
+}
+
+// ═══════════════ MEMORY LAB (Spaced Repetition) ═══════════════
+const SR_BOXES=['New','Box 1 (daily)','Box 2 (3-day)','Box 3 (weekly)','Box 4 (mastered)'];
+let memSession=[];
+let memIdx=0;
+let memRevealed=false;
+
+function buildMemory(){ renderMemory(); }
+
+function renderMemory(){
+  if(!progress.sr) progress.sr={};
+  // Build due cards
+  const now=Date.now();
+  const intervals=[0,1,3,7,21].map(d=>d*86400000);
+  memSession=FORMULAS.filter(f=>{
+    const s=progress.sr[f.id]||{box:0,lastReview:0};
+    return (now-s.lastReview)>=intervals[s.box||0];
+  }).slice(0,20);
+  memIdx=0; memRevealed=false;
+
+  const c=document.getElementById('memory-container');
+  // Stats
+  const boxes=[0,0,0,0,0];
+  FORMULAS.forEach(f=>{
+    const b=(progress.sr[f.id]||{box:0}).box||0;
+    boxes[Math.min(b,4)]++;
+  });
+  c.innerHTML=`
+    <div class="memory-stats-row">
+      ${SR_BOXES.map((lbl,i)=>`<div class="mem-stat"><div class="ms-num">${boxes[i]}</div><div class="ms-label">${lbl}</div></div>`).join('')}
+    </div>
+    <div id="mem-session"></div>
+  `;
+  renderMemCard();
+}
+
+function renderMemCard(){
+  const s=document.getElementById('mem-session');
+  if(memIdx>=memSession.length){
+    s.innerHTML=`<div class="mem-done"><div class="big-tick">✅</div><p style="font-size:1.1rem;font-weight:700;margin-bottom:8px">Session complete!</p><p style="color:var(--text-dim)">All ${memSession.length} due cards reviewed. Come back tomorrow for the next batch.</p></div>`;
+    return;
+  }
+  const f=memSession[memIdx];
+  const ch=CHAPTERS.find(c=>c.id===f.ch);
+  const srData=progress.sr[f.id]||{box:0};
+  s.innerHTML=`
+    <div class="mem-session-card" id="mem-card">
+      <div style="font-size:.8rem;color:var(--text-dim)">${memIdx+1} / ${memSession.length} — <span style="color:var(--teal)">${ch?ch.name:f.ch}</span> — ${SR_BOXES[srData.box||0]}</div>
+      <div style="font-size:1rem;font-weight:600;text-align:center">${f.name}</div>
+      <div class="mem-formula-display" id="mem-formula-display">
+        <div id="mem-question" style="color:var(--text-dim);font-size:.9rem">Can you recall this formula?</div>
+        <div id="mem-answer" style="display:none">$${f.formula}$<div style="font-size:.8rem;color:var(--text-dim);margin-top:8px">${f.note}</div></div>
+      </div>
+      <button class="mem-reveal-btn" id="mem-reveal-btn" onclick="revealMem()">Reveal Formula</button>
+      <div class="mem-grade-row" id="mem-grade-row" style="display:none">
+        <button class="mem-grade again" onclick="gradeMem(0)">Again</button>
+        <button class="mem-grade hard"  onclick="gradeMem(1)">Hard</button>
+        <button class="mem-grade good"  onclick="gradeMem(2)">Good</button>
+        <button class="mem-grade easy"  onclick="gradeMem(3)">Easy</button>
+      </div>
+    </div>
+  `;
+  if(window.renderMathInElement) setTimeout(()=>renderMathInElement(document.getElementById('mem-session'),{delimiters:[{left:'$',right:'$',display:false}]}),50);
+}
+
+function revealMem(){
+  document.getElementById('mem-question').style.display='none';
+  document.getElementById('mem-answer').style.display='block';
+  document.getElementById('mem-reveal-btn').style.display='none';
+  document.getElementById('mem-grade-row').style.display='flex';
+  if(window.renderMathInElement) setTimeout(()=>renderMathInElement(document.getElementById('mem-answer'),{delimiters:[{left:'$',right:'$',display:false}]}),50);
+}
+
+async function gradeMem(rating){
+  // 0=Again, 1=Hard, 2=Good, 3=Easy
+  const f=memSession[memIdx];
+  if(!progress.sr) progress.sr={};
+  const cur=progress.sr[f.id]||{box:0,lastReview:0};
+  let newBox=cur.box||0;
+  if(rating===0) newBox=0;
+  else if(rating===1) newBox=Math.max(newBox-1,1);
+  else if(rating===2) newBox=Math.min(newBox+1,4);
+  else newBox=Math.min(newBox+2,4);
+  progress.sr[f.id]={box:newBox,lastReview:Date.now()};
+  await saveProgress();
+  memIdx++;
+  renderMemCard();
+  // re-render stats
+  const boxes=[0,0,0,0,0];
+  FORMULAS.forEach(fo=>{
+    const b=(progress.sr[fo.id]||{box:0}).box||0;
+    boxes[Math.min(b,4)]++;
+  });
+  const stats=document.querySelectorAll('.mem-stat .ms-num');
+  if(stats.length===5) boxes.forEach((v,i)=>stats[i].textContent=v);
+}
+
+// ═══════════════ PARENT DASH ═══════════════
+async function loadParentDash(){
+  // Find Charan's UID by querying Firestore (or fallback display)
+  try{
+    // Try to get data from all student users; for demo, load from current if student
+    const q=await fDb.collectionGroup('apbie_chemistry').get();
+    let bestData=null;
+    q.forEach(doc=>{ if(doc.id==='data') bestData=doc.data(); });
+    if(!bestData){ document.getElementById('activity-list').innerHTML='<div class="activity-item"><span class="ai-text">No student data found yet. Charan needs to log in and use the app first.</span></div>'; return; }
+    renderDashStats(bestData);
+    await loadDashEvents();
+  } catch(e){
+    document.getElementById('activity-list').innerHTML='<div class="activity-item"><span class="ai-text">'+e.message+'</span></div>';
+  }
+}
+
+function renderDashStats(data){
+  const qf=data.qf||{};
+  const sr=data.sr||{};
+  const stars=data.stars||{};
+  let totalCorrect=0,totalAttempts=0;
+  Object.values(qf).forEach(v=>{totalCorrect+=v.correct||0;totalAttempts+=v.total||0;});
+  const acc=totalAttempts?Math.round((totalCorrect/totalAttempts)*100):0;
+  const masteredSR=Object.values(sr).filter(v=>(v.box||0)>=4).length;
+  const starCount=Object.values(stars).filter(Boolean).length;
+  document.getElementById('dash-grid').innerHTML=`
+    <div class="dash-stat"><div class="ds-label">QF Accuracy</div><div class="ds-val" style="color:${acc>=80?'#4ade80':acc>=60?'#f59e0b':'#f87171'}">${acc}%</div><div class="ds-sub">${totalCorrect}/${totalAttempts} correct</div></div>
+    <div class="dash-stat"><div class="ds-label">Formulas Mastered</div><div class="ds-val">${masteredSR}</div><div class="ds-sub">of ${FORMULAS.length} total</div></div>
+    <div class="dash-stat"><div class="ds-label">Starred Formulas</div><div class="ds-val">${starCount}</div><div class="ds-sub">bookmarked for review</div></div>
+    <div class="dash-stat"><div class="ds-label">Chapters Practiced</div><div class="ds-val">${Object.keys(qf).length}</div><div class="ds-sub">of 9 chapters</div></div>
+  `;
+}
+
+async function loadDashEvents(){
+  try{
+    const snap=await fDb.collectionGroup('events').orderBy('ts','desc').limit(10).get();
+    const items=[];
+    snap.forEach(doc=>items.push(doc.data()));
+    if(items.length===0){
+      document.getElementById('activity-list').innerHTML='<div class="activity-item"><span class="ai-text">No activity yet.</span></div>';
+      return;
+    }
+    document.getElementById('activity-list').innerHTML=items.map(e=>{
+      const icon=e.type==='quickfire'?'⚡':e.type==='derive'?'🔬':'🧠';
+      const ts=e.ts?.toDate?new Date(e.ts.toDate()).toLocaleString():'recently';
+      const detail=e.type==='quickfire'?`Quick Fire: ${e.detail?.correct||0}/${e.detail?.total||0} correct`
+        :e.type==='derive'?`Derive It: ${e.detail?.topic||''}`
+        :`Memory Lab`;
+      return `<div class="activity-item"><span class="ai-icon">${icon}</span><span class="ai-text"><strong>${detail}</strong></span><span class="ai-time">${ts}</span></div>`;
+    }).join('');
+  } catch(e){}
+}
+
+// ═══════════════ TOAST ═══════════════
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// ═══════════════ BOOT ═══════════════
+initFirebase();
+</script>
+</body>
+</html>

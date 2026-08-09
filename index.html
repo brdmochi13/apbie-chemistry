@@ -187,6 +187,36 @@ body{background:var(--navy);color:var(--text);font-family:'Segoe UI',system-ui,s
 .hidden{display:none!important}
 .tag-pill{background:var(--navy2);border:1px solid var(--border);border-radius:99px;padding:3px 10px;font-size:.73rem;color:var(--text-dim)}
 
+
+/* ── PRINT MODAL ── */
+#print-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+#print-modal-bg.open{display:flex}
+#print-modal{background:var(--card);border:1px solid var(--border);border-radius:20px;width:min(640px,96vw);max-height:90vh;overflow-y:auto;padding:32px}
+.pm-title{font-size:1.2rem;font-weight:700;color:var(--teal);margin-bottom:6px}
+.pm-sub{color:var(--text-dim);font-size:.85rem;margin-bottom:24px}
+.pm-chapter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:24px}
+.pm-ch-btn{background:var(--navy2);border:2px solid var(--border);border-radius:10px;padding:10px 14px;cursor:pointer;text-align:left;transition:all .2s;color:var(--text-dim);font-size:.82rem}
+.pm-ch-btn:hover{border-color:var(--teal);color:var(--text)}
+.pm-ch-btn.sel{border-color:var(--teal);background:#0d948420;color:var(--teal);font-weight:600}
+.pm-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.pm-pill{background:var(--navy2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:.82rem;color:var(--text-dim);transition:all .2s}
+.pm-pill:hover{border-color:var(--teal);color:var(--text)}
+.pm-print-btn{background:linear-gradient(135deg,#0d9488,#7c3aed);border:none;border-radius:12px;padding:13px 36px;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;width:100%;transition:opacity .2s;letter-spacing:.02em}
+.pm-print-btn:hover{opacity:.9}
+.pm-close{float:right;background:transparent;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px}
+.pm-options{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.pm-option{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;color:var(--text-dim)}
+.pm-option input{accent-color:var(--teal);width:16px;height:16px}
+
+/* ── PRINTABLE SHEET (hidden div, revealed on print) ── */
+#printable-sheet{display:none}
+
+@media print{
+  body > *:not(#printable-sheet){ display:none !important }
+  #printable-sheet{ display:block !important }
+  @page{ margin:15mm 12mm; size:A4 }
+}
+
 /* Responsive */
 @media(max-width:640px){
   .header-nav{gap:2px}
@@ -231,6 +261,7 @@ body{background:var(--navy);color:var(--text);font-family:'Segoe UI',system-ui,s
       <button class="nav-btn"        onclick="switchTab('quickfire')" id="tab-quickfire">⚡ Quick Fire</button>
       <button class="nav-btn"        onclick="switchTab('derive')"    id="tab-derive">🔬 Derive It</button>
       <button class="nav-btn"        onclick="switchTab('memory')"    id="tab-memory">🧠 Memory Lab</button>
+      <button class="nav-btn" style="background:linear-gradient(135deg,#0d9488,#7c3aed);color:#fff;font-weight:600" onclick="openPrintModal()">🖨️ Print</button>
     </nav>
     <div class="header-user">
       <div class="avatar" id="header-avatar"></div>
@@ -955,8 +986,242 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'),2200);
 }
 
+
+// ═══════════════ PRINT FEATURE ═══════════════
+const CH_COLORS = {
+  ch1:"#0d9488", ch2:"#7c3aed", ch3:"#f59e0b",
+  ch4:"#e11d48", ch5:"#2563eb", ch6:"#16a34a",
+  ch7:"#ea580c", ch8:"#8b5cf6", ch9:"#0891b2"
+};
+const CH_ICONS = {
+  ch1:"⚖️", ch2:"⚛️", ch3:"📊", ch4:"🔗",
+  ch5:"🌡️", ch6:"⚖️", ch7:"🔋", ch8:"🧪", ch9:"⛽"
+};
+const CH_MNEMONICS = {
+  ch1:"Tip: Molarity (M) changes with Temp; Molality (m) doesn't — 'm' for mass-based!",
+  ch2:"Tip: SPDF — 'Silly People Don't Fail'. Nodes = n−1 total; radial = n−l−1.",
+  ch3:"Tip: IE anomaly — Be > B (full 2s²) and N > O (half-filled 2p³). Fluorine = most electronegative (4.0).",
+  ch4:"Tip: More lone pairs → smaller bond angle. VSEPR repulsion: lp-lp > lp-bp > bp-bp.",
+  ch5:"Tip: ΔG < 0 = Go (spontaneous)! ΔH−TΔS drives everything. Adiabatic: q=0.",
+  ch6:"Tip: Henderson-Hasselbalch — pH = pKa + log([A⁻]/[HA]). Buffer works best when pH ≈ pKa.",
+  ch7:"Tip: Carius uses AgCl for Cl (÷143.5×35.5) and BaSO₄ for S (÷233×32). Dumas = N₂ gas at STP.",
+  ch8:"Tip: Carbocation stability 3°>2°>1°>CH₃⁺. Homolytic fission → free radicals (neutral).",
+  ch9:"Tip: Markovnikov — H goes to more-H carbon. Benzene prefers substitution (aromatic stability)."
+};
+
+let pmSelected = new Set(CHAPTERS.map(c=>c.id));
+
+function openPrintModal(){
+  buildPmGrid();
+  document.getElementById('print-modal-bg').classList.add('open');
+}
+function closePrintModal(){
+  document.getElementById('print-modal-bg').classList.remove('open');
+}
+function buildPmGrid(){
+  const grid = document.getElementById('pm-chapter-grid');
+  grid.innerHTML = CHAPTERS.map(ch=>`
+    <button class="pm-ch-btn ${pmSelected.has(ch.id)?'sel':''}" id="pmch-${ch.id}" onclick="pmToggle('${ch.id}')">
+      <span style="font-size:1.1rem">${CH_ICONS[ch.id]||'⚗️'}</span> ${ch.name}
+    </button>`).join('');
+}
+function pmToggle(id){
+  if(pmSelected.has(id)) pmSelected.delete(id);
+  else pmSelected.add(id);
+  document.getElementById('pmch-'+id).classList.toggle('sel', pmSelected.has(id));
+}
+function pmSelectAll(){ pmSelected = new Set(CHAPTERS.map(c=>c.id)); buildPmGrid(); }
+function pmClearAll(){ pmSelected.clear(); buildPmGrid(); }
+
+function generateAndPrint(){
+  if(pmSelected.size===0){ toast('Select at least one chapter'); return; }
+  const showNotes     = document.getElementById('pm-show-notes').checked;
+  const showMnem      = document.getElementById('pm-show-mnemonics').checked;
+  const colorCoded    = document.getElementById('pm-color-coded').checked;
+  const selectedChs   = CHAPTERS.filter(ch=>pmSelected.has(ch.id));
+  const totalFormulas = FORMULAS.filter(f=>pmSelected.has(f.ch)).length;
+
+  let html = `
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;background:#fff;color:#1a1a2e;font-size:11pt}
+    .page-header{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #0d9488;padding-bottom:10px;margin-bottom:18px}
+    .page-header h1{font-size:20pt;font-weight:800;color:#0d1b2a;letter-spacing:-.02em}
+    .page-header h1 span{color:#0d9488}
+    .page-header .meta{text-align:right;font-size:8pt;color:#666;line-height:1.6}
+    .atoms-decoration{font-size:28pt;letter-spacing:4px;opacity:.15;color:#0d9488}
+
+    .ch-block{margin-bottom:20px;break-inside:avoid}
+    .ch-header{display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:8px 8px 0 0;color:#fff;font-weight:700;font-size:10.5pt}
+    .ch-body{border:1.5px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;padding:0}
+    .formula-row{display:grid;grid-template-columns:1fr 1.4fr;gap:0;border-bottom:1px solid #f0f0f0;padding:8px 12px;break-inside:avoid}
+    .formula-row:last-child{border-bottom:none}
+    .formula-row:nth-child(even){background:#fafafa}
+    .f-left{padding-right:12px;border-right:1px dashed #d1d5db}
+    .f-label{font-weight:700;font-size:9pt;color:#374151;margin-bottom:3px}
+    .f-hint{font-size:8pt;color:#6b7280;line-height:1.4;margin-top:3px}
+    .f-right{padding-left:12px;display:flex;align-items:center}
+    .f-formula-text{font-family:'JetBrains Mono',monospace;font-size:9.5pt;color:#1a1a2e;line-height:1.5;word-break:break-word}
+
+    .mnemonic-box{margin:10px 12px;background:linear-gradient(135deg,#f0fdf4,#ecfeff);border-left:3px solid #0d9488;border-radius:4px;padding:7px 10px;font-size:8pt;color:#064e3b;line-height:1.5;break-inside:avoid}
+    .mnemonic-box::before{content:'💡 ';font-weight:600}
+
+    .summary-bar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+    .sum-pill{background:#f0fdf4;border:1px solid #d1fae5;border-radius:20px;padding:4px 12px;font-size:8.5pt;color:#065f46;font-weight:600}
+
+    .footer{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:8px;display:flex;justify-content:space-between;font-size:7.5pt;color:#9ca3af}
+
+    .visual-bar{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap}
+    .vb-ch{padding:3px 10px;border-radius:99px;font-size:7.5pt;font-weight:700;color:#fff}
+    
+    /* Atom SVG decorations */
+    .atom-deco{float:right;opacity:.08;margin-left:8px}
+    
+    @media print{
+      .ch-block{page-break-inside:avoid}
+      body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    }
+  </style>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <h1>APBIE <span>Chemistry</span></h1>
+      <div style="font-size:9pt;color:#6b7280;margin-top:3px">IIT JEE & Intermediate 1st Year — Formula Cheat Sheet</div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:24pt;letter-spacing:3px;opacity:.3">⚛️ 🔬 ⚗️</div>
+    </div>
+    <div class="meta">
+      <div><b>${selectedChs.length} chapters</b> · ${totalFormulas} formulas</div>
+      <div>Generated ${new Date().toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'})}</div>
+      <div style="margin-top:2px">Charan — brdmochi13</div>
+    </div>
+  </div>
+
+  <!-- COLOUR KEY BAR -->
+  <div class="visual-bar">
+    ${selectedChs.map(ch=>`<span class="vb-ch" style="background:${CH_COLORS[ch.id]||'#666'}">${CH_ICONS[ch.id]} ${ch.short}</span>`).join('')}
+  </div>
+  `;
+
+  // Chapter blocks
+  selectedChs.forEach(ch => {
+    const color = colorCoded ? (CH_COLORS[ch.id]||'#374151') : '#374151';
+    const formulas = FORMULAS.filter(f=>f.ch===ch.id);
+    const mnem = CH_MNEMONICS[ch.id]||'';
+
+    html += `<div class="ch-block">
+      <div class="ch-header" style="background:${color}">
+        <span style="font-size:14pt">${CH_ICONS[ch.id]||'⚗️'}</span>
+        ${ch.name}
+        <span style="margin-left:auto;font-size:8pt;opacity:.8">${formulas.length} formulas</span>
+      </div>
+      <div class="ch-body">`;
+
+    formulas.forEach(f => {
+      // Clean up LaTeX to readable text for print (approximate)
+      let formulaText = f.formula
+        .replace(/\dfrac\{([^}]+)\}\{([^}]+)\}/g,'($1)/($2)')
+        .replace(/\frac\{([^}]+)\}\{([^}]+)\}/g,'($1)/($2)')
+        .replace(/\text\{([^}]+)\}/g,'$1')
+        .replace(/\times/g,'×')
+        .replace(/\times10\^\{([^}]+)\}/g,'×10^$1')
+        .replace(/\left\[/g,'[').replace(/\right\]/g,']')
+        .replace(/\left\(/g,'(').replace(/\right\)/g,')')
+        .replace(/\rightleftharpoons/g,'⇌')
+        .replace(/\rightarrow/g,'→')
+        .replace(/\xrightarrow\{[^}]*\}/g,'→')
+        .replace(/\geq/g,'≥').replace(/\leq/g,'≤')
+        .replace(/\implies/g,'⟹').replace(/\alpha/g,'α')
+        .replace(/\beta/g,'β').replace(/\Delta/g,'Δ')
+        .replace(/\delta/g,'δ').replace(/\lambda/g,'λ')
+        .replace(/\nu/g,'ν').replace(/\mu/g,'μ')
+        .replace(/\pi/g,'π').replace(/\sigma/g,'σ')
+        .replace(/\omega/g,'ω').replace(/\rho/g,'ρ')
+        .replace(/\chi/g,'χ').replace(/\eta/g,'η')
+        .replace(/\sqrt\{([^}]+)\}/g,'√($1)')
+        .replace(/\^\{([^}]+)\}/g,(m,p)=>{
+          const sup={0:'⁰',1:'¹',2:'²',3:'³',4:'⁴',5:'⁵',6:'⁶',7:'⁷',8:'⁸',9:'⁹','+':'⁺','-':'⁻','n':'ⁿ',a:'ᵃ'};
+          return p.split('').map(c=>sup[c]||c).join('');
+        })
+        .replace(/\_\{([^}]+)\}/g,(m,p)=>{
+          const sub={0:'₀',1:'₁',2:'₂',3:'₃',4:'₄',5:'₅',6:'₆',7:'₇',8:'₈',9:'₉','+':'₊','-':'₋','n':'ₙ','a':'ₐ','g':'g','c':'c','p':'p'};
+          return p.split('').map(c=>sub[c]||c).join('');
+        })
+        .replace(/\\|\;|\,|\!/g,' ')
+        .replace(/\{|\}/g,'')
+        .replace(/\s+/g,' ').trim();
+
+      html += `<div class="formula-row">
+        <div class="f-left">
+          <div class="f-label">${f.name}</div>
+          ${showNotes ? `<div class="f-hint">${f.note}</div>` : ''}
+        </div>
+        <div class="f-right">
+          <div class="f-formula-text">${formulaText}</div>
+        </div>
+      </div>`;
+    });
+
+    html += '</div>'; // ch-body
+
+    if(showMnem && mnem){
+      html += `<div class="mnemonic-box">${mnem}</div>`;
+    }
+
+    html += '</div>'; // ch-block
+  });
+
+  // Footer
+  html += `<div class="footer">
+    <span>⚛️ APBIE Chemistry — apbie-chemistry.brdmochi13.workers.dev</span>
+    <span>Charan's JEE Prep · ${new Date().getFullYear()}</span>
+  </div>`;
+
+  const sheet = document.getElementById('printable-sheet');
+  sheet.innerHTML = html;
+  closePrintModal();
+  setTimeout(()=>window.print(), 300);
+}
+
+// Close modal on background click
+document.addEventListener('click', e=>{
+  if(e.target.id==='print-modal-bg') closePrintModal();
+});
+
+
 // ═══════════════ BOOT ═══════════════
 initFirebase();
 </script>
+
+<!-- PRINT MODAL -->
+<div id="print-modal-bg">
+  <div id="print-modal">
+    <button class="pm-close" onclick="closePrintModal()">✕</button>
+    <div class="pm-title">🖨️ Print Study Sheet</div>
+    <div class="pm-sub">Choose chapters — generates a beautiful A4 cheat sheet with all formulas</div>
+
+    <div class="pm-row">
+      <button class="pm-pill" onclick="pmSelectAll()">✅ Select All</button>
+      <button class="pm-pill" onclick="pmClearAll()">☐ Clear All</button>
+    </div>
+
+    <div class="pm-chapter-grid" id="pm-chapter-grid"></div>
+
+    <div class="pm-options">
+      <label class="pm-option"><input type="checkbox" id="pm-show-notes" checked> Include notes/hints</label>
+      <label class="pm-option"><input type="checkbox" id="pm-show-mnemonics" checked> Memory tips</label>
+      <label class="pm-option"><input type="checkbox" id="pm-color-coded" checked> Colour-coded chapters</label>
+    </div>
+
+    <button class="pm-print-btn" onclick="generateAndPrint()">🖨️ Generate &amp; Print</button>
+  </div>
+</div>
+
+<!-- HIDDEN PRINTABLE DIV -->
+<div id="printable-sheet"></div>
+
 </body>
 </html>
